@@ -1,0 +1,206 @@
+---
+title: "ESM 244 Lab Week 7"
+author: "Allison Horst"
+date: "2/11/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(tidytext)
+library(textdata)
+library(pdftools)
+library(ggwordcloud)
+```
+
+## Get The Hobbit
+
+```{r}
+hobbit_text <- pdf_text("the-hobbit.pdf")
+```
+
+- Each row is a page of the PDF (i.e., this is a vector of strings, one for each page)
+- Only sees text that is "selectable"
+
+Example: Just want to get text from a single page (e.g. Page 34)? 
+
+```{r}
+hobbit_p34 <- hobbit_text[34]
+```
+
+From Jessica Couture and Casey Ohara's [text mining workshop](https://github.com/oharac/text_workshop) for eco-data-science: “pdf_text() returns a vector of strings, one for each page of the pdf. So we can mess with it in tidyverse style, let’s turn it into a dataframe, and keep track of the pages. Then we can use stringr::str_split() to break the pages up into individual lines. Each line of the pdf is concluded with a backslash-n, so split on this. We will also add a line number in addition to the page number."
+
+Let's first get it into a data frame. Then we'll do some wrangling with the tidyverse, break it up by chapter, and do some analyses. 
+
+```{r}
+hobbit_df <- data.frame(hobbit_text) %>% 
+  mutate(text_full = str_split(hobbit_text, pattern = '\\n')) %>% 
+  unnest(text_full) %>% 
+  mutate(text_full = str_trim(text_full)) 
+
+# Why '\\n' instead of '\n'? Because some symbols (e.g. \, *) need to be called literally with a starting \ to escape the regular expression. For example, \\a for a string actually contains literally \a. So the string that represents the regular expression '\n' is actually '\\n'.
+
+# More information: https://cran.r-project.org/web/packages/stringr/vignettes/regular-expressions.html
+```
+
+## Do some tidying
+
+Now, we'll add a new column that contains the Chapter number (so we can use this as a grouping variable later on).
+
+We will use `str_detect()` to look for any cells in "text_full" column that contains the string "Chapter", and if it does, the new column will contain that chapter number:
+
+```{r}
+hobbit_df <- hobbit_df %>% 
+  slice(-(1:125)) %>% 
+  mutate(chapter = case_when(
+    str_detect(text_full, "Chapter") ~ text_full,
+    TRUE ~ NA_character_
+  )) %>% 
+  fill(chapter)
+```
+
+## Get some word counts by Chapter!
+
+```{r}
+hobbit_tokens <- hobbit_df %>% 
+  unnest_tokens(word, text_full) %>% 
+  select(-hobbit_text)
+```
+
+```{r}
+hobbit_wordcount <- hobbit_tokens %>% 
+  count(chapter, word)
+```
+
+...OK, but check out which words show up the most. They're probably not words we're super interested in (like "a", "the", "and"). How can we limit those? 
+
+## Remove stop words
+
+Those very common (and often uninteresting) words are called "stop words." See `?stop_words` and `View(stop_words)`to look at documentation for stop words lexicons (from the `tidytext` package).
+
+We will *remove* stop words using `tidyr::anti_join()`, which will *omit* any words in `stop_words` from `hobbit_tokens`.
+
+```{r}
+hobbit_nonstop_words <- hobbit_tokens %>% 
+  anti_join(stop_words)
+```
+Then let's try counting them again: 
+```{r}
+nonstop_counts <- hobbit_nonstop_words %>% 
+  count(chapter, word)
+```
+
+## Find the top 5 words from each chapter
+
+```{r}
+top_5_words <- nonstop_counts %>% 
+  group_by(chapter) %>% 
+  arrange(-n) %>% 
+  slice(1:5)
+
+# Make some graphs: 
+ggplot(data = top_5_words, aes(x = word, y = n)) +
+  geom_col(fill = "blue") +
+  facet_wrap(~chapter, scales = "free") +
+  coord_flip()
+```
+
+## Let's make a word cloud for Chapter 1
+
+```{r}
+ch1_top100 <- nonstop_counts %>% 
+  filter(chapter == "Chapter I") %>% 
+  arrange(-n) %>% 
+  slice(1:100)
+```
+
+```{r}
+ch1_cloud <- ggplot(data = ch1_top100, aes(label = word)) +
+  geom_text_wordcloud(aes(color = n, size = n), shape = "diamond") +
+  scale_size_area(max_size = 6) +
+  scale_color_gradientn(colors = c("darkgreen","blue","purple")) +
+  theme_minimal()
+
+ch1_cloud
+```
+
+## How do sentiments change over the course of the book? 
+
+First, check out the ‘sentiments’ lexicon. From Julia Silge and David Robinson (https://www.tidytextmining.com/sentiment.html):
+
+“The three general-purpose lexicons are
+
+  -  AFINN from Finn Årup Nielsen,
+  -  bing from Bing Liu and collaborators, and
+  -  nrc from Saif Mohammad and Peter Turney
+
+All three of these lexicons are based on unigrams, i.e., single words. These lexicons contain many English words and the words are assigned scores for positive/negative sentiment, and also possibly emotions like joy, anger, sadness, and so forth. The nrc lexicon categorizes words in a binary fashion (“yes”/“no”) into categories of positive, negative, anger, anticipation, disgust, fear, joy, sadness, surprise, and trust. The bing lexicon categorizes words in a binary fashion into positive and negative categories. The AFINN lexicon assigns words with a score that runs between -5 and 5, with negative scores indicating negative sentiment and positive scores indicating positive sentiment. All of this information is tabulated in the sentiments dataset, and tidytext provides a function get_sentiments() to get specific sentiment lexicons without the columns that are not used in that lexicon."
+
+Let's explore the sentiment lexicons. "bing" included, other lexicons ("afinn", "nrc", "loughran") you'll be prompted to to download.
+
+**WARNING:** These collections include the most offensive words you can think of. 
+
+"afinn": Words ranked from -5 (very negative) to +5 (very positive)
+
+positive)
+```{r}
+get_sentiments(lexicon = "afinn")
+
+# Let's look at the pretty positive words:
+afinn_pos <- get_sentiments("afinn") %>% 
+  filter(value %in% c(3,4,5))
+
+# Check them out:
+afinn_pos
+```
+
+For comparison, check out the bing lexicon: 
+
+```{r}
+get_sentiments(lexicon = "bing")
+```
+
+And the nrc lexicon:https://saifmohammad.com/WebPages/NRC-Emotion-Lexicon.htm
+Includes bins for 8 emotions (anger, anticipation, disgust, fear, joy, sadness, surprise, trust) and positive / negative. 
+
+**Citation for NRC lexicon**: Crowdsourcing a Word-Emotion Association Lexicon, Saif Mohammad and Peter Turney, Computational Intelligence, 29 (3), 436-465, 2013.
+
+Now nrc:
+```{r}
+get_sentiments(lexicon = "nrc")
+```
+
+### Sentiment analysis with afinn: 
+
+First, bind words in `hobbit_nonstop_words` to `afinn` lexicon:
+```{r}
+hobbit_afinn <- hobbit_nonstop_words %>% 
+  inner_join(get_sentiments("afinn"))
+```
+
+Let's find some counts (by sentiment ranking):
+```{r}
+afinn_counts <- hobbit_afinn %>% 
+  count(chapter, value)
+
+# Plot them: 
+ggplot(data = afinn_counts, aes(x = value, y = n)) +
+  geom_col() +
+  facet_wrap(~chapter)
+
+# Find the mean afinn score by chapter: 
+afinn_means <- hobbit_afinn %>% 
+  group_by(chapter) %>% 
+  summarize(mean_afinn = mean(value))
+
+ggplot(data = afinn_means, 
+       aes(x = fct_reorder(chapter, mean_afinn), 
+           y = mean_afinn)) +
+  geom_col() +
+  coord_flip()
+```
+
+...and you can check out how this compares if you instead join to the bing or nrc lexicons! 
+
+### End text mining, exploration, & sentiment analysis introduction
