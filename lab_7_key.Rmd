@@ -1,7 +1,6 @@
 ---
-title: "ESM 244 Lab Week 7"
+title: "ESM 244 Lab Week 7 - The Hobbit text analysis"
 author: "Allison Horst"
-date: "2/11/2021"
 output: html_document
 ---
 
@@ -16,7 +15,7 @@ library(ggwordcloud)
 
 ## Get The Hobbit
 
-```{r}
+```{r, cache = TRUE}
 hobbit_text <- pdf_text("the-hobbit.pdf")
 ```
 
@@ -34,7 +33,7 @@ From Jessica Couture and Casey Ohara's [text mining workshop](https://github.com
 Let's first get it into a data frame. Then we'll do some wrangling with the tidyverse, break it up by chapter, and do some analyses. 
 
 ```{r}
-hobbit_df <- data.frame(hobbit_text) %>% 
+hobbit_tidy <- data.frame(hobbit_text) %>% 
   mutate(text_full = str_split(hobbit_text, pattern = '\\n')) %>% 
   unnest(text_full) %>% 
   mutate(text_full = str_trim(text_full)) 
@@ -51,13 +50,15 @@ Now, we'll add a new column that contains the Chapter number (so we can use this
 We will use `str_detect()` to look for any cells in "text_full" column that contains the string "Chapter", and if it does, the new column will contain that chapter number:
 
 ```{r}
-hobbit_df <- hobbit_df %>% 
+hobbit_df <- hobbit_tidy %>% 
   slice(-(1:125)) %>% 
   mutate(chapter = case_when(
     str_detect(text_full, "Chapter") ~ text_full,
     TRUE ~ NA_character_
   )) %>% 
-  fill(chapter)
+  fill(chapter) %>% 
+  separate(col = chapter, into = c("ch", "no"), sep = " ") %>% 
+  mutate(chapter = as.numeric(as.roman(no)))
 ```
 
 ## Get some word counts by Chapter!
@@ -110,7 +111,7 @@ ggplot(data = top_5_words, aes(x = word, y = n)) +
 
 ```{r}
 ch1_top100 <- nonstop_counts %>% 
-  filter(chapter == "Chapter I") %>% 
+  filter(chapter == 1) %>% 
   arrange(-n) %>% 
   slice(1:100)
 ```
@@ -195,12 +196,31 @@ afinn_means <- hobbit_afinn %>%
   summarize(mean_afinn = mean(value))
 
 ggplot(data = afinn_means, 
-       aes(x = fct_reorder(chapter, mean_afinn), 
+       aes(x = fct_rev(as.factor(chapter)), 
            y = mean_afinn)) +
   geom_col() +
   coord_flip()
 ```
 
-...and you can check out how this compares if you instead join to the bing or nrc lexicons! 
+### Now with NRC lexicon
+
+Recall, this assigns words to sentiment bins. Let's bind our hobbit data to the NRC lexicon: 
+
+```{r}
+hobbit_nrc <- hobbit_nonstop_words %>% 
+  inner_join(get_sentiments("nrc"))
+```
+Let's find the count of words by chapter and sentiment bin: 
+
+```{r}
+hobbit_nrc_counts <- hobbit_nrc %>% 
+  count(chapter, sentiment)
+
+
+ggplot(data = hobbit_nrc_counts, aes(x = sentiment, y = n)) +
+  geom_col() +
+  facet_wrap(~chapter) +
+  coord_flip()
+```
 
 ### End text mining, exploration, & sentiment analysis introduction
