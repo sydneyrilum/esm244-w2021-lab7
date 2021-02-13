@@ -1,0 +1,118 @@
+---
+title: "ESM 244 Lab Week 7 - strings in stringr & other stuff"
+author: "Allison Horst"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+We haven't done a ton of work with strings so far in 206 or 244. In this part, we'll learn a bit about how to deal with infamous **regular expressions** (*regex* or *regexp*) using nice functions in the `stringr` package (in the `tidyverse`) to make our lives easier.
+
+Want to learn more about working with regex *without* the `stringr` package functions? Read a nice introduction from Roger Peng [HERE](https://bookdown.org/rdpeng/rprogdatascience/regular-expressions.html).
+
+## Useful functions in `stringr`
+
+We'll do some work with the `starwars` dataset from `dplyr` (so if you have the `tidyverse`) attached, the dataset already exists. 
+
+Check it out by running `View(starwars)` in the Console. OK here we go. 
+
+### Detect a pattern
+
+Use `stringr::str_detect()` to detect a string pattern. 
+
+Let's see how it works first, then try it out for something that might be useful: 
+
+```{r}
+# Make a little vector
+vec <- c("  A Unicorn     Fish", " add   cornmeal ", "  French FRIES", " acorn squash  ")
+
+# Then detect a string pattern: 
+str_detect(vec, pattern = "corn")
+```
+We see that it returns a T/F vector indicating whether or not the pattern "corn" exists within each element of the vector. 
+
+How might we use that in a data frame? It can be helpful to use `str_detect()` within `filter()` to only keep observations that contain that pattern in the specified variable. 
+
+For example: Only keep observations where the pattern "walk" exists within the character name. 
+
+```{r}
+walk_subset <- starwars %>% 
+  filter(str_detect(name, pattern = "walk"))
+```
+
+**Note:** you can also use `str_subset()` here for a shorter version, which is a wrapper for `x(str_detect(pattern = ""))`:
+```{r}
+walk_subset_2 <- str_subset(starwars$name, pattern = "walk")
+
+walk_subset_2 # Same outcome (I just like the filter version more, even though it's more verbose)
+```
+
+### Replace a pattern
+
+Use `stringr::str_replace()` to replace a pattern with something else.
+
+Let's start with our vector, `vec`, replacing "corn" with "COOL":
+```{r}
+vec_bren <- str_replace(vec, pattern = "corn", replacement = "COOL")
+
+vec_bren
+```
+
+And with the `starwars` data, let's replace any "Sky" string pattern with "TORNADO": 
+
+```{r}
+sw_tornado <- starwars %>% 
+  mutate(name = str_replace(name, pattern = "Sky", replacement = "TORNADO"))
+```
+
+
+### Remove white space
+
+In some of the strings of our vector `vec`, we have really obnoxious white space. This can be problematic because excess white spaces can mess with groupings or finding matches (i.e. because " hello friend" is, in R's mind, definitely not the same group as "hello friend" or "hello   friend ").
+
+There are a few helper functions in the `stringr` package to help us out. Let's use two of them: `str_trim()` and `str_squish()`. 
+
+- `str_trim()`: removes leading and trailing whitespace
+- `str_squish()`: removes leading / trailing whitespace and excess interior whitespace
+
+```{r}
+str_trim(vec) # Notice there are still excess spaces in the middle
+
+str_squish(vec) # Notice that now trailing, leading and excess interior whitespaces are removed
+```
+
+### Change string case
+
+It can also be useful to update the *case* of strings in your code. Since, for example, "Fish" will be seen entirely differently from "fish". 
+We can use the `str_to_*()` functions to change the case. 
+
+- `str_to_lower()`: make everything lowercase
+- `str_to_upper()`: make everything to uppercase
+- `str_to_title()`: convert to title case
+
+Let's try it out with our vector: 
+
+```{r}
+str_to_lower(vec) 
+
+str_to_upper(vec)
+
+str_to_title(vec)
+```
+
+And we can use these things in combination, usually within `mutate()` if it's to update a column in a data frame.
+
+For example, with `starwars` data: 
+
+```{r}
+sw_combo <- starwars %>% 
+  filter(str_detect(name, pattern = "Darth")) %>% 
+  mutate(name = str_replace(name, pattern = "Darth", replacement = "Llama")) %>% 
+  mutate(name = str_to_lower(name))
+```
+
+### End `stringr` intro
+
