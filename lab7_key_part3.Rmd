@@ -19,7 +19,7 @@ library(raster)
 library(tmap)
 ```
 
-This is an example of point pattern analysis with quadrat analysis, density plot, the G-function, and a hypothesis test for complete spatial randomness.
+This is an example of point pattern analysis with a density plot, and the G- & L- function (distance methods) to compare our observed points with simulated complete spatial randomness.
 
 ```{r}
 voles <- read_sf(dsn = here("redtreevoledata"), 
@@ -53,15 +53,15 @@ ggplot() +
   theme_minimal()
 ```
 
-These need to be combined into spatial point pattern data (points + window combo), and for point pattern analysis this **requires a 2D projection** (in this case, UTM), which is why there's this `proj4string` line here to specify the project (yes, this looks like a lot, just copy and paste the projection information exactly):
+These need to be combined into spatial point pattern data (points + window combo), and for point pattern analysis this **requires a 2D projection** (in this case, UTM), which is why there's this `proj4string` line here to specify the project (yes, this looks like a lot, just copy and paste the projection information exactly). This looks quite a bit different from what we've done so far - it uses functions in `spatstat` to create point patterns that play nicely with other functions for data viz & point pattern analysis.
 
 ```{r}
 voles_sp <- as(voles,"Spatial") # Convert to object 'Spatial'
-proj4string(voles_sp) <- "+proj=utm +zone=18 +datum=WGS84 +units=m +no_defs +ellps=WGS84 +towgs84=0,0,0" # Add UTM projection
+proj4string(voles_sp) <- "+proj=utm +zone=10 +datum=WGS84 +units=m +no_defs +ellps=WGS84 +towgs84=0,0,0" # Add UTM projection
 voles_ppp <- as(voles_sp, "ppp") # Convert to spatial point pattern
 
 humboldt_sp <- as(humboldt, "Spatial") # Convert to object 'Spatial'
-proj4string(humboldt_sp) <- "+proj=utm +zone=18 +datum=WGS84 +units=m +no_defs +ellps=WGS84 +towgs84=0,0,0" # Add UTM projection
+proj4string(humboldt_sp) <- "+proj=utm +zone=10 +datum=WGS84 +units=m +no_defs +ellps=WGS84 +towgs84=0,0,0" # Add UTM projection
 humboldt_win <- as(humboldt_sp, "owin") # Convert to spatial point pattern
 
 # Combine as a point pattern object (points + window):
