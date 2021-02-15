@@ -22,11 +22,12 @@ library(tmap)
 This is an example of point pattern analysis with a density plot, and the G- & L- function (distance methods) to compare our observed points with simulated complete spatial randomness.
 
 ```{r}
+# Read in the tree vole data
 voles <- read_sf(dsn = here("redtreevoledata"), 
                  layer = "ds033") %>% 
-  dplyr::select(COUNTY) %>% 
-  filter(COUNTY == "HUM") %>% 
-  st_transform(crs = 4326)
+  dplyr::select(COUNTY) %>% # Only select the county attribute
+  filter(COUNTY == "HUM") %>% # Only keep observations in Humboldt County
+  st_transform(crs = 4326) # Update CRS
 
 # Plot it (exploratory)
 plot(voles)
@@ -34,11 +35,11 @@ plot(voles)
 # Get Humboldt County outline
 humboldt <- read_sf(dsn = here("redtreevoledata"), 
                     layer = "california_county_shape_file") %>% 
-  filter(NAME == "Humboldt") %>% 
-  dplyr::select(NAME)
+  filter(NAME == "Humboldt") %>% # Isolate Humboldt County
+  dplyr::select(NAME) # Only keep one attribute (name) to simplify
 
 # Set CRS
-st_crs(humboldt) <- 4326
+st_crs(humboldt) <- 4326 # Set CRS to match 
 
 # plot them together
 ggplot() +
@@ -57,7 +58,7 @@ These need to be combined into spatial point pattern data (points + window combo
 
 ```{r}
 voles_sp <- as(voles,"Spatial") # Convert to object 'Spatial'
-proj4string(voles_sp) <- "+proj=utm +zone=10 +datum=WGS84 +units=m +no_defs +ellps=WGS84 +towgs84=0,0,0" # Add UTM projection
+proj4string(voles_sp) <- "+proj=utm +zone=10 +datum=WGS84 +units=m +no_defs +ellps=WGS84 +towgs84=0,0,0" # Add UTM projection so that it's 2D (otherwise point pattern analysis invalid)
 voles_ppp <- as(voles_sp, "ppp") # Convert to spatial point pattern
 
 humboldt_sp <- as(humboldt, "Spatial") # Convert to object 'Spatial'
