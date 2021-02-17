@@ -1,0 +1,83 @@
+---
+title: "Part 1- stringr functions"
+author: "Sydney Rilum"
+date: "2/16/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+### Detect string patterns with `str_detect()`
+
+```{r}
+vec <- c(" A Unicorn    Fish ", "add   cornmeal", "French FRIES", "acorn Squash ")
+
+str_detect(vec, pattern = "corn")
+```
+
+
+```{r}
+# Use str_detect() within filter()
+walk_subset <- starwars %>% 
+  filter(str_detect(name, pattern = "walk"))  #looks for any name obs containing "walk"
+
+walk_subset
+
+# Use str_subset()
+```
+
+### Replace a string pattern with something else
+
+`str_replace()` to replace an existing string pattern with something else.
+
+```{r}
+vec_bren <- str_replace(vec, pattern = "corn", replacement = "cool")   # replace corn with cool
+
+vec_bren
+```
+
+replace the pattern "Sky" with the pattern "TORNADO"
+
+```{r}
+sw_tornado <- starwars %>% 
+  mutate(name = str_replace(name, pattern = "Sky", replacement = "TORNADO"))
+```
+
+
+### Use `str_trim()` to remove excess leading and trailing whitespace
+
+```{r}
+str_trim(vec)
+
+str_squish(vec)
+```
+
+```{r}
+str_detect(vec, pattern = "Corn")
+# shows that R is case sensitive
+```
+
+### Updating string case
+- `str_to_*()`
+
+```{r}
+str_to_lower(vec)  # lowercase
+
+str_to_upper(vec)  # uppercase
+
+str_to_title(vec)  # title case
+```
+
+Using these in combination:
+```{r}
+sw_combo <- starwars %>% 
+  filter(str_detect(name, pattern = "Darth")) %>% 
+  mutate(name = str_replace(name, pattern = "Darth", replacement = "LLAMA")) %>% 
+  mutate(name = str_to_lower(name))
+```
+
+
+
